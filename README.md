@@ -1,4 +1,4 @@
-# Fake-News-Classification-by-Kaggle-Competition
+# Fake News Classification by Kaggle Competition
 
 The repository contains python file for the Kaggle competition on fake news classification
 * **mydataset.py** is the script of the custom Dataset module to be later used by DataLoader. 
