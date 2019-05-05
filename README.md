@@ -19,16 +19,16 @@ These instructions will get you a copy of the project up and running on your loc
 * Dataset used here is downloaded from the Kaggle competition on WSDM2019-Fake News Classification.
 * Also, change some hard coded file loading path in the script to load them from local. 
   Otherwise, they are expected to be created locally:
-    * ./numpy_saved to save and load the pre-processed numpy array, which is later used in DataLoader.
-    * ./word2vec_pretrained to load the pre-trained word vectors.
-    * ./models to save the trained model every time after training.
+    * ```./numpy_saved``` to save and load the pre-processed numpy array, which is later used in DataLoader.
+    * ```./word2vec_pretrained``` to load the pre-trained word vectors.
+    * ```./models``` to save the trained model every time after training.
 * There are some other arguments can be passed to **main.py**. For details, refer to the ```argparse``` section in it.
 
 
 ## Running the scripts
 
 ### Train the model
-run training as default, and save the trained model in dir ./model.
+run training as default, and save the trained model in dir ```./model```.
 ```
 python3 main.py #run training as default, and save the trained model in dir ./model
 ```
