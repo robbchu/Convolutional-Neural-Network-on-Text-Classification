@@ -28,16 +28,19 @@ These instructions will get you a copy of the project up and running on your loc
 ## Running the scripts
 
 ### Train the model
+run training as default, and save the trained model in dir ./model.
 ```
 python3 main.py #run training as default, and save the trained model in dir ./model
 ```
 ### Evaluate the trained model
+evaluate the model loaded from the saved state dict of ```.pth```.
 ```
-python3 main.py -test -snapshot './models/saved_model.pth' #evaluate the model loaded from saved state dict of ```.pth```
+python3 main.py -test -snapshot './models/saved_model.pth' 
 ```
 ### Predict on test set
+predict and save results as ```submission.csv```.
 ```
-python3 main.py -predict -snapshot './models/saved_model.pth' #save the predicted output ```submission.csv```
+python3 main.py -predict -snapshot './models/saved_model.pth' 
 ```
 Finally, you can submit your output.csv to Kaggle to get private and public score on leaderboard.
 
