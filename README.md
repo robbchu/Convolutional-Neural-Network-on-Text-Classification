@@ -39,7 +39,7 @@ python3 main.py -test -snapshot './models/saved_model.pth' #evaluate the model l
 ```
 python3 main.py -predict -snapshot './models/saved_model.pth' #save the predicted output ```submission.csv```
 ```
-Finally, you can submit your output.csv to the Kaggle to get private and public score on leaderboard.
+Finally, you can submit your output.csv to Kaggle to get private and public score on leaderboard.
 
 
 ## Built With
