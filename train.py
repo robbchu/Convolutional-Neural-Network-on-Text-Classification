@@ -46,11 +46,11 @@ def train(trainloader, evalloader, model, args):
 			steps += 1
 			#print some loss, accuracy satistics on training every 2000 steps
 			running_loss += loss.item()
-			if i % 2000 == 1999:    # print every 2000 mini-batches
+			if i % 1500 == 1499:    # print every 2000 mini-batches
 				corrects = (torch.max(outputs, 1)[1] == labels).sum().item()
-				accuracy = 100 * corrects / BATCH_SIZE
-				print('[%d, %5d] loss: %.3f' %
-                  (epoch + 1, i + 1, running_loss / 2000))
+				accuracy = 100 * corrects / labels.size(0)
+				print('[In epoch {}, the {} iteration] - loss: {:.6f}, acc: {:.4f}'.\
+					format(epoch + 1, i + 1, running_loss / 1500, accuracy))
 				
 				'''sys.stdout.write('\rBatch[{}] - loss: {:.6f}  acc: {:.4f}%({}/{})'.format\
 					(steps, running_loss / 2000, accuracy, corrects, inputs.size()[0]))
@@ -58,7 +58,7 @@ def train(trainloader, evalloader, model, args):
 				running_loss = 0.0
 			#save the bset model so far by evaluating on eval data
 			if steps % args.test_interval == 0:
-				dev_acc = eval(evalloader, model, args)
+				dev_acc = eval(evalloader, model)
 				#dev_acc = 0
 				if dev_acc > best_acc:
 					best_acc = dev_acc
@@ -69,9 +69,9 @@ def train(trainloader, evalloader, model, args):
 				else:
 					if steps - last_step >= args.early_stop:
 						continued_earlystop += 1
-						if continued_earlystop > 1000:
+						if continued_earlystop > (9016 * 10) and epoch > 32:
 							return -1, steps, best_acc
-						print('early stop at {} steps with not increasing eval acc after {} steps.'.format(steps, args.early_stop))
+						print('early stop at {} steps with continually not increasing eval acc after 10 batched.'.format(steps))
 			#save model every interval steps
 			elif steps % args.save_interval == 0:
 				torch.save(model.state_dict(), './models/snapshot_{}.pth'.format(steps))
@@ -81,7 +81,7 @@ def train(trainloader, evalloader, model, args):
 
 	return 1, steps, best_acc
 
-def eval(evalloader, model, args):
+def eval(evalloader, model):
 
 	model.eval()
 

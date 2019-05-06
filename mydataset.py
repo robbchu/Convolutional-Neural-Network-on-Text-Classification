@@ -17,6 +17,7 @@ import time
 DATAPATH = '/home/robert/Dataset/'
 WORD_DIR = '/home/robert/python/'
 WV_MODEL = 'word2vec_pretrained/zh_wiki_word2vec_300.txt'
+FAKEDICT = 'fakedict/fakedict_sumto1.npy'
 
 #the column name to index dict for usage of select item when df.itertuples
 cols_dict = {'tid1':1, 'tid2':2, 'title1_zh':3, 'title2_zh':4, 'label':5}
@@ -117,7 +118,7 @@ def tokWV(token, wordvectors):
 	else:
 		return vector / seg_count
 
-def df2np(data, wordvectors, Test=False):
+def df2np(data, wordvectors, fakedict, Test=False):
 
 	tid2text_dict = tid2text(data) 
 
@@ -149,33 +150,32 @@ def df2np(data, wordvectors, Test=False):
 			if i >= MAX_LEN: 
 				break
 			for j, tok2 in enumerate(title2):
-				if j < i: 
-					continue
 				if j >= MAX_LEN: 
 					break
 				#the 1st channel, whether the tokens are matched
-				if tok1 == tok2:
-					input_npdata[index][0][i][j] = 1
-					input_npdata[index][0][j][i] = 1
-				else:
-					input_npdata[index][0][i][j] = 0
-					input_npdata[index][0][j][i] = 0
+				if (tok1 in fakedict) and (tok2 in fakedict):
+					input_npdata[index][0][i][j] = fakedict[tok1] + fakedict[tok2]
+				elif tok2 in fakedict:
+					input_npdata[index][0][i][j] = fakedict[tok2]
+				elif tok1 in fakedict:
+					input_npdata[index][0][i][j] = fakedict[tok1]
+
 				#the 2nd channel, the cosine similarity between tokens
 				if (tok1 not in wordvectors.vocab) or (tok2 not in wordvectors.vocab):
 					input_npdata[index][1][i][j] = 0
-					input_npdata[index][1][j][i] = 0
+					#input_npdata[index][1][j][i] = 0
 					input_npdata[index][2][i][j] = 0
-					input_npdata[index][2][j][i] = 0
+					#input_npdata[index][2][j][i] = 0
 					continue
 				wv1 = tokWV(tok1, wordvectors)
 				wv2 = tokWV(tok2, wordvectors)
 				cosine_similarity = np.sum(wv1 * wv2) / np.linalg.norm(wv1) / np.linalg.norm(wv2)
 				input_npdata[index][1][i][j] = cosine_similarity
-				input_npdata[index][1][j][i] = cosine_similarity
+				#input_npdata[index][1][j][i] = cosine_similarity
 				#the 3rd channel, the distance between tokens
 				euclidean_distance = np.linalg.norm(wv1 - wv2)
 				input_npdata[index][2][i][j] = euclidean_distance
-				input_npdata[index][2][j][i] = euclidean_distance
+				#input_npdata[index][2][j][i] = euclidean_distance
 
 		index += 1
 
@@ -187,21 +187,23 @@ if __name__=="__main__":
 	print('Loading model from Gensim by pretrained Word2Vec model: {}'.format(WV_MODEL))
 	start = time.time()
 	wordvectors = KeyedVectors.load_word2vec_format(WORD_DIR+WV_MODEL, binary=False)
-	print('Loading model costs {} seconds'.format(round(time.time()-start, 2)))
+	print('Loaded model costs {} seconds'.format(round(time.time()-start, 2)))
+	fakedict = np.load(FAKEDICT).item()
+	print('\nLoad the fact dictionary of length {}.\n'.format(len(fakedict)))
 	#wordvectors = wv_model.wv
 	#tid2text_dict,_, _ = tid2text(train)
 	print('\ndf2np of train data\n')
-	train_input_npdata, train_label_npdata = df2np(train, wordvectors)
+	train_input_npdata, train_label_npdata = df2np(train, wordvectors, fakedict)
 	np.save('./numpy_saved/train_input.npy', train_input_npdata)
 	np.save('./numpy_saved/train_label.npy', train_label_npdata)
 	
 	print('\ndf2np of eval data\n')
-	eval_input_npdata, eval_label_npdata = df2np(val, wordvectors)
+	eval_input_npdata, eval_label_npdata = df2np(val, wordvectors, fakedict)
 	np.save('./numpy_saved/eval_input.npy', eval_input_npdata)
 	np.save('./numpy_saved/eval_label.npy', eval_label_npdata)
 
 	print('\ndf2np of test data\n')
-	test_input_npdata, test_id_npdata = df2np(test, wordvectors, Test=True)
+	test_input_npdata, test_id_npdata = df2np(test, wordvectors, fakedict, Test=True)
 	np.save('./numpy_saved/test_input.npy', test_input_npdata)
 	np.save('./numpy_saved/test_id.npy', test_id_npdata)
 

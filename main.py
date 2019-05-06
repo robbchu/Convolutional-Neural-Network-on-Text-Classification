@@ -31,7 +31,11 @@ parser.add_argument('-dropout', type=float, default=0.5, help='the probability f
 parser.add_argument('-max-norm', type=float, default=3.0, help='l2 constraint of parameters [default: 3.0]')
 parser.add_argument('-embed-dim', type=int, default=128, help='number of embedding dimension [default: 128]')
 parser.add_argument('-kernel-num', type=int, default=100, help='number of each kind of kernel')
-parser.add_argument('-kernel-sizes', type=str, default='3,4,5', help='comma-separated kernel size to use for convolution')
+parser.add_argument('-kernel-sizes', type=int, default=3, help='kernel size to use for convolution')
+parser.add_argument('-channels', type=int, default=3, help='number of channels of input')
+parser.add_argument('-classes', type=int, default=3, help='number of classes to predict')
+parser.add_argument('-dim0', type=int, default=16, help='size of dimension 0 of input')
+parser.add_argument('-dim1', type=int, default=16, help='size of dimension 1 of input')
 parser.add_argument('-static', action='store_true', default=False, help='fix the embedding')
 # device
 parser.add_argument('-device', type=int, default=-1, help='device to use for iterate data, -1 means cpu [default: -1]')
@@ -105,7 +109,7 @@ if args.predict is True:
 #BUT the eval data is the validation set during training
 elif args.test is True:
 	try:
-		train.eval(evalloader, cnn, args)
+		train.eval(evalloader, cnn)
 	except Exception as e:
 		print('\nSorry. The test dataset does not exist.\n')
 #to train the model
