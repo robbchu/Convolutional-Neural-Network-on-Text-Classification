@@ -1,6 +1,6 @@
 # Fake News Classification by Kaggle Competition
 
-The repository contains python file for the Kaggle competition on fake news classification
+The repository contains files for the Kaggle competition on fake news classification
 * **mydataset.py** is the script of the custom Dataset module to be later used by DataLoader. 
   So it first loads the dataset and pre-processes on them, and save the resulting numpy array into dir ./numpy_saved.
 * **main.py** is the main program to run either training by the dataset, evaluate on the validation set, or predict the label on the test set.
