@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description='CNN text classifier')
 # learning
 parser.add_argument('-lr', type=float, default=0.001, help='initial learning rate [default: 0.001]')
 parser.add_argument('-epochs', type=int, default=128, help='number of epochs for train [default: 256]')
-parser.add_argument('-batch-size', type=int, default=32, help='batch size for training [default: 64]')
+parser.add_argument('-batch-size', type=int, default=16, help='batch size for training [default: 64]')
 parser.add_argument('-log-interval',  type=int, default=1,   help='how many steps to wait before logging training status [default: 1]')
 parser.add_argument('-test-interval', type=int, default=100, help='how many steps to wait before testing [default: 100]')
 parser.add_argument('-save-interval', type=int, default=500, help='how many steps to wait before saving [default:500]')
@@ -52,43 +52,46 @@ args = parser.parse_args()
 if (args.predict is not True) and (args.test is not True):
 	print('\nLoad train data.')
 	start = time.time()
-	train_numpy_data = np.load(args.npdir+'/train_input.npy')
+	#train_numpy_data = np.load(args.npdir+'/train_input1.npy')
+	train_numpy_data2 = np.load(args.npdir+'/train_input2.npy')
 	train_numpy_target = np.load(args.npdir+'/train_label.npy')
-	train_dataset = MyDataset(train_numpy_data, train_numpy_target)
+	train_dataset = MyDataset(train_numpy_data2, train_numpy_target)
 	trainloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, 
 		num_workers=args.num_workers, pin_memory=torch.cuda.is_available())
 	print('Spend {} sec to load {} GB np array.'.format\
 		(round(time.time()-start, 2), \
-		train_numpy_data.size * train_numpy_data.itemsize / 1024 / 1024 / 1024))
+		train_numpy_data2.size * train_numpy_data2.itemsize / 1024 / 1024 / 1024))
 #./main for evaluation
 if (args.test is True) or ((args.predict is not True and args.test is not True) is True):
 	print('\nLoad eval data')
 	start = time.time()
-	eval_numpy_data = np.load(args.npdir+'/eval_input.npy')
+	#eval_numpy_data = np.load(args.npdir+'/eval_input1.npy')
+	eval_numpy_data2 = np.load(args.npdir+'/eval_input2.npy')
 	eval_numpy_target = np.load(args.npdir+'/eval_label.npy')
-	eval_dataset = MyDataset(eval_numpy_data, eval_numpy_target)
+	eval_dataset = MyDataset(eval_numpy_data2, eval_numpy_target)
 	evalloader = DataLoader(eval_dataset, batch_size=args.batch_size, shuffle=True, 
 		num_workers=args.num_workers, pin_memory=torch.cuda.is_available())
 	print('Spend {} sec to load {} MB np array.'.format\
 		(round(time.time()-start, 2), \
-		eval_numpy_data.size * eval_numpy_data.itemsize / 1024 / 1024))
+		eval_numpy_data2.size * eval_numpy_data2.itemsize / 1024 / 1024))
 #./main for prediction
 if args.predict is True:
 	print('\nLoad test data')
 	start = time.time()
-	test_numpy_data = np.load(args.npdir+'/test_input.npy')
+	#est_numpy_data = np.load(args.npdir+'/test_input1.npy')
+	test_numpy_data2 = np.load(args.npdir+'/test_input2.npy')
 	test_numpy_ids = np.load(args.npdir+'/test_id.npy')
-	test_dataset = MyDataset(test_numpy_data, test_numpy_ids)
+	test_dataset = MyDataset(test_numpy_data2, test_numpy_ids)
 	testloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, 
 		num_workers=args.num_workers, pin_memory=torch.cuda.is_available())
 	print('Spend {} sec to load {} MB np array.'.format\
 		(round(time.time()-start, 2), \
-		test_numpy_data.size * test_numpy_data.itemsize / 1024 / 1024))
+		test_numpy_data2.size * test_numpy_data2.itemsize / 1024 / 1024))
 
 #Model
 cnn = model.Net(args)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-cnn.to(device)
+cnn.cuda(device)
 
 #to load the pre-trained and saved model from snapshot .pn file
 if args.snapshot is not None:

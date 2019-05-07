@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 from sklearn.model_selection import train_test_split
-from gensim.models import KeyedVectors
+from gensim.models import KeyedVectors, Word2Vec
 
 import os
 import zipfile
@@ -13,10 +13,13 @@ import numpy as np
 import pandas as pd
 import jieba
 import time
+import argparse
 
 DATAPATH = '/home/robert/Dataset/'
 WORD_DIR = '/home/robert/python/'
-WV_MODEL = 'word2vec_pretrained/zh_wiki_word2vec_300.txt'
+WV_MODEL1 = 'word2vec_pretrained/zh_wiki_word2vec_300.txt'
+WV_MODEL2 = 'word2vec_pretrained/word2vec_yee100/word2vec.model'
+WV_DIM = 100
 FAKEDICT = 'fakedict/fakedict_sumto1.npy'
 
 #the column name to index dict for usage of select item when df.itertuples
@@ -25,22 +28,47 @@ cols_dict = {'tid1':1, 'tid2':2, 'title1_zh':3, 'title2_zh':4, 'label':5}
 label_dict = {'agreed':0, 'disagreed':1, 'unrelated':2}
 
 class MyDataset(Dataset):
-	def __init__(self, data, target, transform=None):
-		self.data = torch.from_numpy(data).float()
+	def __init__(self, data1, target, transform=None):
+		self.data1 = data1
+		#self.data2 = data2
+		self.target = target
+		self.transform = transform
+
+	def __getitem__(self, index):
+		x1 = torch.from_numpy(self.data1[index]).float()
+		#x2 = torch.from_numpy(self.data2[index]).float()
+		y = torch.from_numpy(np.array(self.target[index])).long()
+
+		if self.transform:
+			x1 = self.transform(x1)
+			#x2 = self.transform(x2)
+
+		return x1, y
+
+	def __len__(self):
+		return len(self.data1)
+'''
+class MyDataset(Dataset):
+	def __init__(self, data1, target, transform=None):
+		self.data1 = torch.from_numpy(data1).float()
+		#self.data2 = torch.from_numpy(data2).float()
 		self.target = torch.from_numpy(target).long()
 		self.transform = transform
 
 	def __getitem__(self, index):
-		x = self.data[index]
+		x1 = self.data1[index]
+		#x2 = self.data2[index]
 		y = self.target[index]
 
 		if self.transform:
-			x = self.transform(x)
+			x1 = self.transform(x1)
+			#x2 = self.transform(x2)
 
-		return x, y
+		return x1, y
 
 	def __len__(self):
-		return len(self.data)
+		return len(self.data1)
+'''
 
 def loaddata():
 	#Load train, test data path, 
@@ -103,7 +131,7 @@ dev_token_count = 2.7
 
 def tokWV(token, wordvectors):
 	seg_count = 0
-	vector = np.zeros(300)
+	vector = np.zeros(WV_DIM)
 	if token in wordvectors.vocab:
 		vector = wordvectors[token]
 		seg_count += 1
@@ -122,10 +150,10 @@ def df2np(data, wordvectors, fakedict, Test=False):
 
 	tid2text_dict = tid2text(data) 
 
-
 	len_df = len(data)
 	channel = 3
 	MAX_LEN = 16 #decide from the mean token count and the variance of it by 67-95-98:1-2-3dev
+	WV_DIM = WV_DIM
 	classes = 3
 
 	input_npdata = np.zeros(len_df*channel*MAX_LEN*MAX_LEN).reshape(len_df, channel, MAX_LEN, MAX_LEN)
@@ -134,7 +162,7 @@ def df2np(data, wordvectors, fakedict, Test=False):
 	index = 0
 	for item in data.itertuples():
 		if (index % (len_df // 5)) == 0:
-			print("Fininshed: {:.2f}% ({}/{})".format(index/len_df*100, index, len_df))
+			print("Fininshed df2np: {:.2f}% ({}/{})".format(index/len_df*100, index, len_df))
 		title1 = tid2text_dict[item[cols_dict['tid1']]]
 		title2 = tid2text_dict[item[cols_dict['tid2']]]
 		
@@ -181,13 +209,69 @@ def df2np(data, wordvectors, fakedict, Test=False):
 
 	return input_npdata, output_npdata
 
+def df2wvMatrix(data, wordvectors):
+
+	tid2text_dict = tid2text(data) 
+
+	len_df = len(data)
+	channel = 1
+	MAX_LEN = 16 #decide from the mean token count and the variance of it by 67-95-98:1-2-3dev
+	WV_DIM = WV_DIM
+	classes = 3
+	input_npdata2 = np.zeros(len_df*channel*(MAX_LEN*2)*WV_DIM).reshape(len_df, channel, MAX_LEN*2, WV_DIM)
+
+	index = 0
+	for item in data.itertuples():
+		if (index % (len_df // 5)) == 0:
+			print("Fininshed df2wvMatrix: {:.2f}% ({}/{})".format(index/len_df*100, index, len_df))
+		title1 = tid2text_dict[item[cols_dict['tid1']]]
+		title2 = tid2text_dict[item[cols_dict['tid2']]]
+		
+		#build the 3-channel figure from text pairs(title1, title2)
+		for i, tok1 in enumerate(title1):
+			if i >= MAX_LEN: 
+				break
+			if tok1 not in wordvectors.vocab:
+				continue
+			wv1 = tokWV(tok1, wordvectors)
+			input_npdata2[index][0][i] = wv1
+		for j, tok2 in enumerate(title2):
+			if j >= MAX_LEN: 
+				break
+			if tok2 not in wordvectors.vocab:
+				continue
+			wv2 = tokWV(tok2, wordvectors)
+			input_npdata2[index][0][MAX_LEN+j] = wv2
+
+		index += 1
+
+	return input_npdata2
 
 if __name__=="__main__":
 	train, val, test =loaddata()
-	print('Loading model from Gensim by pretrained Word2Vec model: {}'.format(WV_MODEL))
+	print('Loading model from Gensim by pretrained Word2Vec model: {}'.format(WV_MODEL2))
 	start = time.time()
-	wordvectors = KeyedVectors.load_word2vec_format(WORD_DIR+WV_MODEL, binary=False)
+	if WV_MODEL2 == '':
+		wordvectors = KeyedVectors.load_word2vec_format(WORD_DIR+WV_MODEL1, binary=False)
+	if WV_MODEL2 != '':
+		wvmodel = Word2Vec.load(WORD_DIR+WV_MODEL2)
+		wordvectors = wvmodel.wv
 	print('Loaded model costs {} seconds'.format(round(time.time()-start, 2)))
+
+	'''
+	#transform to the numpy of word vectors
+	print('\ndf2wvMatrix of train data\n')
+	train_input_npdata2 = df2wvMatrix(train, wordvectors)
+	np.save('./numpy_saved/train_input2.npy', train_input_npdata2)
+	print('\ndf2wvMatrix of eval data\n')
+	eval_input_npdata2 = df2wvMatrix(val, wordvectors)
+	np.save('./numpy_saved/eval_input2.npy', eval_input_npdata2)
+	print('\ndf2wvMatrix of test data\n')
+	test_input_npdata2 = df2wvMatrix(test, wordvectors)
+	np.save('./numpy_saved/test_input2.npy', test_input_npdata2)
+	'''
+
+	#transform to the numpy of 3 channel
 	fakedict = np.load(FAKEDICT).item()
 	print('\nLoad the fact dictionary of length {}.\n'.format(len(fakedict)))
 	#wordvectors = wv_model.wv

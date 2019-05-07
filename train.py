@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
 import sys
+import math
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -14,7 +15,7 @@ def train(trainloader, evalloader, model, args):
 
 	'''the optional argument weight assigned to each of the classes. 
 	This is particularly useful when you have an unbalanced training set.'''	
-	weights = torch.tensor([0.089, 1, 0.037], device=device)
+	weights = torch.tensor([1/15 *5, 1/5 *5, 1/16 *5], device=device)
 	criterion = nn.CrossEntropyLoss(weight = weights)
 	optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
@@ -25,14 +26,17 @@ def train(trainloader, evalloader, model, args):
 	model.train()
 	EPOCH = args.epochs
 	BATCH_SIZE = args.batch_size
+	batch_count = 0
 	for epoch in range(EPOCH):
 
 		running_loss = 0.0
 
 		for i, batch in enumerate(trainloader, 0):
+			batch_count += 1
 			# get the inputs
 			inputs, labels = batch
 			inputs, labels = inputs.to(device), labels.to(device)
+			#inputs, labels = [x.to(device) for x in inputs], labels.to(device)
 
 			# zero the parameter gradients
 			optimizer.zero_grad()
@@ -40,6 +44,7 @@ def train(trainloader, evalloader, model, args):
 			# forward + backward + optimize
 			outputs = model(inputs)
 			loss = criterion(outputs, labels)
+
 			loss.backward()
 			optimizer.step()
 
@@ -75,6 +80,11 @@ def train(trainloader, evalloader, model, args):
 			#save model every interval steps
 			elif steps % args.save_interval == 0:
 				torch.save(model.state_dict(), './models/snapshot_{}.pth'.format(steps))
+			if batch_count == math.ceil(len(trainloader.dataset)//BATCH_SIZE) and epoch ==0:
+				print('Batch count {} matches the dataset of len {} with batch size {}.'\
+					.format(batch_count, len(trainloader.dataset), BATCH_SIZE))
+				batch_count = 0
+
 		#save the latest model snapshot
 		if epoch+1 == EPOCH:
 			torch.save(model.state_dict(), './models/snapshot_last.pth')   
@@ -88,10 +98,15 @@ def eval(evalloader, model):
 	corrects = 0
 	avg_loss = 0
 	total = 0
+	batch_count = 0
 	with torch.no_grad():
 		for batch in evalloader:
+			batch_count += 1
 			inputs, labels = batch
+			#only one input figure
 			inputs, labels = inputs.to(device), labels.to(device)
+			#two input figure, halt bc OOM
+			#inputs, labels = [x.to(device) for x in inputs], labels.to(device)
 
 			outputs = model(inputs)
 			loss = F.cross_entropy(outputs, labels, reduction='sum')
@@ -105,8 +120,8 @@ def eval(evalloader, model):
 
 	avg_loss /= total
 	accuracy = 100 * corrects / total
-	print('\nEvaluation - loss: {:.6f}  acc: {:.4f}%({}/{}) \n'.format\
-		(avg_loss, accuracy, corrects, total))		
+	print('\nEvaluation on {} batches of validation - loss: {:.6f}  acc: {:.4f}%({}/{}) \n'.format\
+		(batch_count, avg_loss, accuracy, corrects, total))		
 
 	return accuracy
 
