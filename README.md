@@ -1,6 +1,6 @@
 # Fake News Classification by Kaggle Competition
 
-The repository contains files for the Kaggle competition on fake news classification.
+The repository contains files for the Kaggle competition on fake news classification(Chinese).
 
 In a nutshell, we implement this inference task by Convolutional Neural Network with 2 different design on input. And we find the result achieves the best score by combination of them. For detail, please refer to the [report](https://drive.google.com/open?id=1Ge4FcjNUcLbFVbhMke4qKA7DLaTU8Cxm) of this project.
 
@@ -19,7 +19,9 @@ These instructions will get you a copy of the project up and running on your loc
 ### Prerequisites
 * Python 3.6.7
 * PyTorch 0.4.1
-* pre-trained Simplified Chinese Word2Vec file. (.txt as default)
+* [Jieba](https://github.com/fxsjy/jieba)
+* stopword.txt: list of stopwords in Chinese
+* Pre-trained Simplified Chinese Word2Vec file. (.txt as default)
 * Dataset used here is downloaded from the Kaggle competition on WSDM2019-Fake News Classification.
 * Also, change some hard coded file loading path in the script to load them from local. 
   Otherwise, they are expected to be created locally:
