@@ -15,35 +15,28 @@ import jieba
 import time
 import argparse
 
-DATAPATH = '/home/robert/Dataset/'
-WORD_DIR = '/home/robert/python/'
-WV_MODEL1 = 'word2vec_pretrained/zh_wiki_word2vec_300.txt'
-WV_MODEL2 = 'word2vec_pretrained/word2vec_yee100/word2vec.model'
-WV_DIM = 100
-FAKEDICT = 'fakedict/fakedict_sumto1.npy'
-
 #the column name to index dict for usage of select item when df.itertuples
 cols_dict = {'tid1':1, 'tid2':2, 'title1_zh':3, 'title2_zh':4, 'label':5}
 #the label to index dict for usage of convert label classes numpy array
 label_dict = {'agreed':0, 'disagreed':1, 'unrelated':2}
 
 class MyDataset(Dataset):
-	def __init__(self, data1, target, transform=None):
+	def __init__(self, data1, data2, target, transform=None):
 		self.data1 = data1
-		#self.data2 = data2
+		self.data2 = data2
 		self.target = target
 		self.transform = transform
 
 	def __getitem__(self, index):
 		x1 = torch.from_numpy(self.data1[index]).float()
-		#x2 = torch.from_numpy(self.data2[index]).float()
+		x2 = torch.from_numpy(self.data2[index]).float()
 		y = torch.from_numpy(np.array(self.target[index])).long()
 
 		if self.transform:
 			x1 = self.transform(x1)
-			#x2 = self.transform(x2)
+			x2 = self.transform(x2)
 
-		return x1, y
+		return x1, x2, y
 
 	def __len__(self):
 		return len(self.data1)
@@ -129,9 +122,9 @@ mean_token_count = 9.8
 var_token_count = 7.6
 dev_token_count = 2.7
 
-def tokWV(token, wordvectors):
+def tokWV(token, wordvectors, args):
 	seg_count = 0
-	vector = np.zeros(WV_DIM)
+	vector = np.zeros(args.wvdim)
 	if token in wordvectors.vocab:
 		vector = wordvectors[token]
 		seg_count += 1
@@ -146,14 +139,14 @@ def tokWV(token, wordvectors):
 	else:
 		return vector / seg_count
 
-def df2np(data, wordvectors, fakedict, Test=False):
+def df2np(data, wordvectors, fakedict, args, Test=False):
 
 	tid2text_dict = tid2text(data) 
 
 	len_df = len(data)
 	channel = 3
 	MAX_LEN = 16 #decide from the mean token count and the variance of it by 67-95-98:1-2-3dev
-	WV_DIM = WV_DIM
+	WV_DIM = args.wvdim
 	classes = 3
 
 	input_npdata = np.zeros(len_df*channel*MAX_LEN*MAX_LEN).reshape(len_df, channel, MAX_LEN, MAX_LEN)
@@ -209,14 +202,14 @@ def df2np(data, wordvectors, fakedict, Test=False):
 
 	return input_npdata, output_npdata
 
-def df2wvMatrix(data, wordvectors):
+def df2wvMatrix(data, wordvectors, args):
 
 	tid2text_dict = tid2text(data) 
 
 	len_df = len(data)
 	channel = 1
 	MAX_LEN = 16 #decide from the mean token count and the variance of it by 67-95-98:1-2-3dev
-	WV_DIM = WV_DIM
+	WV_DIM = args.wvdim
 	classes = 3
 	input_npdata2 = np.zeros(len_df*channel*(MAX_LEN*2)*WV_DIM).reshape(len_df, channel, MAX_LEN*2, WV_DIM)
 
@@ -248,28 +241,39 @@ def df2wvMatrix(data, wordvectors):
 	return input_npdata2
 
 if __name__=="__main__":
+
+	DATAPATH = '/home/robert/Dataset/'
+	WORD_DIR = '/home/robert/python/'
+	WV_MODEL1 = 'word2vec_pretrained/zh_wiki_word2vec_300.txt'
+	WV_MODEL2 = 'word2vec_pretrained/word2vec_yee100/word2vec.model'
+	FAKEDICT = 'fakedict/fakedict_sumto1.npy'
+
+	parser = argparse.ArgumentParser(description='Dataset builder')
+	parser.add_argument('-wv-dir', type=str, default=WV_MODEL2, help='where to load the word2vec model')
+	parser.add_argument('-wvdim', type=int, default=100, help='the dimension of word vectors')
+	args = parser.parse_args()
+
 	train, val, test =loaddata()
-	print('Loading model from Gensim by pretrained Word2Vec model: {}'.format(WV_MODEL2))
+	print('Loading model from Gensim by pretrained Word2Vec model: {}'.format(args.wv_dir))
 	start = time.time()
-	if WV_MODEL2 == '':
-		wordvectors = KeyedVectors.load_word2vec_format(WORD_DIR+WV_MODEL1, binary=False)
-	if WV_MODEL2 != '':
+	if args.wv_dir == WV_MODEL2: #default: load 100-dim word2vec model
 		wvmodel = Word2Vec.load(WORD_DIR+WV_MODEL2)
 		wordvectors = wvmodel.wv
+	if args.wv_dir != WV_MODEL2: #Load 300-dim word2vec model
+		wordvectors = KeyedVectors.load_word2vec_format(WORD_DIR+args.wv_dir, binary=False)		
 	print('Loaded model costs {} seconds'.format(round(time.time()-start, 2)))
 
-	'''
 	#transform to the numpy of word vectors
 	print('\ndf2wvMatrix of train data\n')
-	train_input_npdata2 = df2wvMatrix(train, wordvectors)
+	train_input_npdata2 = df2wvMatrix(train, wordvectors, args)
 	np.save('./numpy_saved/train_input2.npy', train_input_npdata2)
 	print('\ndf2wvMatrix of eval data\n')
-	eval_input_npdata2 = df2wvMatrix(val, wordvectors)
+	eval_input_npdata2 = df2wvMatrix(val, wordvectors, args)
 	np.save('./numpy_saved/eval_input2.npy', eval_input_npdata2)
 	print('\ndf2wvMatrix of test data\n')
-	test_input_npdata2 = df2wvMatrix(test, wordvectors)
+	test_input_npdata2 = df2wvMatrix(test, wordvectors, args)
 	np.save('./numpy_saved/test_input2.npy', test_input_npdata2)
-	'''
+
 
 	#transform to the numpy of 3 channel
 	fakedict = np.load(FAKEDICT).item()
@@ -277,24 +281,16 @@ if __name__=="__main__":
 	#wordvectors = wv_model.wv
 	#tid2text_dict,_, _ = tid2text(train)
 	print('\ndf2np of train data\n')
-	train_input_npdata, train_label_npdata = df2np(train, wordvectors, fakedict)
-	np.save('./numpy_saved/train_input.npy', train_input_npdata)
+	train_input_npdata, train_label_npdata = df2np(train, wordvectors, fakedict, args)
+	np.save('./numpy_saved/train_input1.npy', train_input_npdata)
 	np.save('./numpy_saved/train_label.npy', train_label_npdata)
 	
 	print('\ndf2np of eval data\n')
-	eval_input_npdata, eval_label_npdata = df2np(val, wordvectors, fakedict)
-	np.save('./numpy_saved/eval_input.npy', eval_input_npdata)
+	eval_input_npdata, eval_label_npdata = df2np(val, wordvectors, fakedict, args)
+	np.save('./numpy_saved/eval_input1.npy', eval_input_npdata)
 	np.save('./numpy_saved/eval_label.npy', eval_label_npdata)
 
 	print('\ndf2np of test data\n')
-	test_input_npdata, test_id_npdata = df2np(test, wordvectors, fakedict, Test=True)
-	np.save('./numpy_saved/test_input.npy', test_input_npdata)
+	test_input_npdata, test_id_npdata = df2np(test, wordvectors, fakedict, args, Test=True)
+	np.save('./numpy_saved/test_input1.npy', test_input_npdata)
 	np.save('./numpy_saved/test_id.npy', test_id_npdata)
-
-	
-	#print(train_input_npdata[:10], train_label_npdata[:10])
-
-	#numpy_data = np.load('./numpy_saved/eval_input.npy')
-	#numpy_target = np.load('./numpy_saved/eval_label.npy')
-	#numpy_test = np.load('./numpy_saved/test_input.npy')
-	#print(numpy_data[0][1])
